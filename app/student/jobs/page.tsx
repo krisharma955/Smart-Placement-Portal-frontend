@@ -11,6 +11,7 @@ import {
     Calendar
 } from "lucide-react";
 
+import { useState } from "react";
 import { client } from "@/lib/api/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +25,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 
 export default function StudentJobsPage() {
+    const [applyingTo, setApplyingTo] = useState<string | null>(null);
 
     const { data: jobs = [], isLoading } = useQuery({
         queryKey: ["all-jobs"],
@@ -44,11 +46,16 @@ export default function StudentJobsPage() {
     });
 
     const handleApply = async (jobId: string) => {
+        console.log("Apply Now clicked for job:", jobId);
         try {
+            setApplyingTo(jobId);
             await client.post(`/applications/${jobId}`);
             toast.success("Successfully applied to the job!");
         } catch (error: any) {
+            console.error("Application error:", error);
             toast.error(error.response?.data?.message || "Failed to apply. You might have already applied.");
+        } finally {
+            setApplyingTo(null);
         }
     };
 
@@ -93,9 +100,9 @@ export default function StudentJobsPage() {
                                     </div>
                                     <div className="mt-4 flex gap-2">
                                         <Badge variant="secondary" className={`${getJobType(job) === "FULL_TIME" ? "bg-blue-500/10 text-blue-400 border-blue-500/20" :
-                                                getJobType(job) === "INTERNSHIP" ? "bg-violet-500/10 text-violet-400 border-violet-500/20" :
-                                                    getJobType(job) === "PART_TIME" ? "bg-amber-500/10 text-amber-400 border-amber-500/20" :
-                                                        "bg-teal-500/10 text-teal-400 border-teal-500/20"
+                                            getJobType(job) === "INTERNSHIP" ? "bg-violet-500/10 text-violet-400 border-violet-500/20" :
+                                                getJobType(job) === "PART_TIME" ? "bg-amber-500/10 text-amber-400 border-amber-500/20" :
+                                                    "bg-teal-500/10 text-teal-400 border-teal-500/20"
                                             }`}>
                                             {getJobType(job).replace("_", " ")}
                                         </Badge>
@@ -156,15 +163,25 @@ export default function StudentJobsPage() {
                                 </CardContent>
                                 <CardFooter className="p-5 pt-0 relative z-10">
                                     <Button
-                                        className="w-full relative overflow-hidden group/btn h-11 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 hover:border-primary/50 transition-all hover:shadow-[0_0_20px_rgba(99,102,241,0.3)]"
+                                        className="w-full relative overflow-hidden group/btn h-11 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 hover:border-primary/50 transition-all hover:shadow-[0_0_20px_rgba(99,102,241,0.3)] pointer-events-auto"
                                         onClick={() => handleApply(job.id)}
+                                        disabled={applyingTo === job.id}
                                         variant="outline"
                                     >
-                                        <span className="relative z-10 flex items-center font-semibold">
-                                            Apply Now
-                                            <svg className="w-4 h-4 ml-2 group-hover/btn:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                                            </svg>
+                                        <span className="relative z-10 flex items-center justify-center font-semibold w-full">
+                                            {applyingTo === job.id ? (
+                                                <>
+                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                    Applying...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    Apply Now
+                                                    <svg className="w-4 h-4 ml-2 group-hover/btn:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                                                    </svg>
+                                                </>
+                                            )}
                                         </span>
                                     </Button>
                                 </CardFooter>
