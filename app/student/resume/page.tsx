@@ -113,6 +113,14 @@ export default function ResumePage() {
         }
     };
 
+    const handleDownload = () => {
+        if (resume?.fileUrl) {
+            window.open(resume.fileUrl, '_blank');
+        } else {
+            toast.error("Resume document is not available for download right now");
+        }
+    };
+
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
             <div>
@@ -130,29 +138,29 @@ export default function ResumePage() {
                         <CardDescription className="text-muted-foreground">Upload your latest CV in PDF format</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6 pt-6 relative z-10">
-                        <div
-                            className="border border-dashed border-white/20 rounded-2xl p-8 flex flex-col items-center justify-center text-center bg-black/40 hover:bg-white/5 hover:border-primary/50 transition-all duration-300 group/upload relative cursor-pointer overflow-hidden"
-                            onClick={() => !isUploading && fileInputRef.current?.click()}
+                        <label
+                            htmlFor="resume-upload"
+                            className="w-full border border-dashed border-white/20 rounded-2xl p-8 flex flex-col items-center justify-center text-center bg-black/40 hover:bg-white/5 hover:border-primary/50 transition-all duration-300 group/upload relative cursor-pointer overflow-hidden block"
                         >
                             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.05)_0,transparent_100%)] opacity-0 group-hover/upload:opacity-100 transition-opacity duration-500" />
-                            <div className="p-4 rounded-full bg-primary/10 mb-4 group-hover/upload:scale-110 group-hover/upload:shadow-glow-primary transition-all duration-300 relative z-10">
+                            <div className="p-4 rounded-full bg-primary/10 mb-4 group-hover/upload:scale-110 group-hover/upload:shadow-glow-primary transition-all duration-300 relative z-10 mx-auto w-fit">
                                 <FileUp className="h-8 w-8 text-primary shadow-sm" />
                             </div>
                             <p className="text-sm font-bold text-foreground/90 mb-1 relative z-10">Click to upload or drag and drop</p>
                             <p className="text-xs text-muted-foreground mb-6 relative z-10">PDF only (max 5MB)</p>
 
-                            <Input
+                            <input
+                                id="resume-upload"
                                 type="file"
                                 accept=".pdf"
                                 onChange={handleFileUpload}
                                 disabled={isUploading}
-                                ref={fileInputRef}
                                 className="hidden"
                             />
-                            <Button type="button" disabled={isUploading} className="pointer-events-none h-11 px-6 rounded-xl bg-white/5 hover:bg-white/10 text-foreground border border-white/10 transition-all z-10 group-hover/upload:bg-primary group-hover/upload:text-primary-foreground group-hover/upload:border-primary">
-                                {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin text-primary" /> : "Select File"}
-                            </Button>
-                        </div>
+                            <div className="flex items-center justify-center font-medium h-11 px-6 rounded-xl bg-white/5 text-foreground border border-white/10 transition-all z-10 group-hover/upload:bg-primary group-hover/upload:text-primary-foreground group-hover/upload:border-primary">
+                                {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin text-[inherit]" /> : "Select File"}
+                            </div>
+                        </label>
 
                         {resume ? (
                             <div className="p-4 rounded-xl bg-black/40 border border-white/5 flex items-center justify-between group/file hover:border-white/10 transition-colors">
@@ -168,7 +176,7 @@ export default function ResumePage() {
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-1 shrink-0">
-                                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-white hover:bg-white/5 h-9 w-9 rounded-lg transition-colors">
+                                    <Button variant="ghost" onClick={handleDownload} size="icon" className="text-muted-foreground hover:text-white hover:bg-white/5 h-9 w-9 rounded-lg transition-colors">
                                         <Download className="h-4 w-4" />
                                     </Button>
                                     <Button variant="ghost" onClick={deleteResume} size="icon" className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-9 w-9 rounded-lg transition-colors">
