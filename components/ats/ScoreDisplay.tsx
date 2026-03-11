@@ -21,11 +21,11 @@ interface ScoreDisplayProps {
 }
 
 export function ScoreDisplay({
-    score,
-    sections,
-    missingKeywords,
-    suggestions,
-    strengths,
+    score = 0,
+    sections = { skills: 0, experience: 0, education: 0, formatting: 0 },
+    missingKeywords = [],
+    suggestions = [],
+    strengths = [],
 }: ScoreDisplayProps) {
     const count = useMotionValue(0);
     const [displayScore, setDisplayScore] = useState(0);
