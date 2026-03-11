@@ -1,36 +1,97 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🎓 Smart Placement Portal
 
-## Getting Started
+![Placement Portal UI Preview](./preview.png)
 
-First, run the development server:
+A comprehensive, full-stack Placement Management System designed to streamline the recruitment process. It serves as a unified platform connecting students with prospective employers, facilitating job postings, application tracking, and profile management with a modern, responsive, and highly polished user interface.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## 🌟 Key Features
+
+### For Students:
+- **Detailed Profiles**: Manage personal information, skills, and upload resumes (with real-time file previews).
+- **Interactive Job Board**: Discover open roles, view comprehensive job details, and one-click apply functionality.
+- **Application Tracking**: Monitor real-time status updates (Applied, Under Review, Shortlisted, Hired, Rejected) on an intuitive dashboard.
+
+### For Companies:
+- **Company Profiles**: Highlight company culture, website, location, and industry details.
+- **Job Management**: Create, edit, and organize job postings with detailed criteria (salary, location, application deadlines).
+- **Applicant Tracking System (ATS)**: Review student applications, download resumes, and instantly update candidate statuses.
+
+## 🛠️ Technology Stack
+
+### Frontend (User Interface)
+- **Framework**: [Next.js 14](https://nextjs.org/) (App Router)
+- **Language**: [TypeScript](https://www.typescriptlang.org/)
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/) & [Framer Motion](https://www.framer.com/motion/)
+- **UI Components**: [shadcn/ui](https://ui.shadcn.com/) (Radix primitives)
+- **State Management & Data Fetching**: [React Query (TanStack)](https://tanstack.com/query/latest) & Zustand
+- **Form Handling**: [React Hook Form](https://react-hook-form.com/) + [Zod](https://zod.dev/) validation
+- **HTTP Client**: [Axios](https://axios-http.com/) (with JWT interceptors)
+
+### Backend (API Server)
+- **Framework**: [Spring Boot 3.x](https://spring.io/projects/spring-boot) (Java 17+)
+- **Security**: Spring Security & JWT (JSON Web Tokens)
+- **Database Access**: Spring Data JPA
+- **Database**: SQL (MySQL/PostgreSQL)
+- **Utilities**: Lombok, Spring Validation
+
+## 📁 Project Structure
+
+```
+├── app/
+│   ├── (auth)/       # Login and Signup pages
+│   ├── student/      # Student Dashboard, Profile, Resume, and Jobs board
+│   ├── company/      # Company Dashboard, Profile, Job creation, and Applicant view
+│   ├── layout.tsx    # Root layout with Theme and Query Providers
+│   └── page.tsx      # Landing page
+├── components/       # Reusable UI components (shadcn buttons, inputs, dialogs, etc.)
+├── lib/
+│   ├── api/          # Axios client, interceptors, and API routes
+│   └── utils.ts      # Tailwind merge and utility functions
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🚀 Getting Started
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Prerequisites
+- Node.js (v18 or higher)
+- npm, yarn, or pnpm
+- A running instance of the Spring Boot backend (`http://localhost:8080`)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Installation
 
-## Learn More
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/krisharma955/Smart-Placement-Portal-frontend.git
+   cd Smart-Placement-Portal-frontend
+   ```
 
-To learn more about Next.js, take a look at the following resources:
+2. **Install dependencies:**
+   ```bash
+   npm install
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+3. **Configure Environment Variables:**
+   Create a `.env.local` file in the root directory:
+   ```env
+   NEXT_PUBLIC_API_URL=http://localhost:8080/api
+   ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+4. **Run the Development Server:**
+   ```bash
+   npm run dev
+   ```
+   The application will be available at `http://localhost:3000`.
 
-## Deploy on Vercel
+## 🔒 Authentication Flow
+The application utilizes JWT (JSON Web Tokens) for security. 
+- Upon successful login, the backend issues an access token.
+- The frontend securely stores this token in `localStorage` and automatically attaches it to the `Authorization` header of every API request using an Axios interceptor.
+- Unauthenticated users attempting to access protected routes (`/student/*` or `/company/*`) are automatically redirected to the `/login` page.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## ✨ Upcoming Features & Roadmap
+- [ ] Email Notifications for application status changes.
+- [ ] Advanced Job Filtering (by Salary, Location, Remote/On-site).
+- [ ] Interview scheduling integrations.
+- [ ] Admin Dashboard for college placement officers.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+*Developed by Krish Sharma*
