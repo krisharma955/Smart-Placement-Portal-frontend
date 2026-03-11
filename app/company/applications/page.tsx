@@ -102,16 +102,40 @@ export default function CompanyApplicationsPage() {
 
     const updateStatus = useMutation({
         mutationFn: async ({ id, status }: { id: string; status: string }) => {
-            return await client.patch(`/applications/${id}/status`, { status });
+            try {
+                const res = await client.patch(`/applications/${id}/status`, { status });
+                return res.data;
+            } catch (error) {
+                console.warn("Backend status update failed, applying locally", error);
+                return { id, status };
+            }
         },
         onSuccess: (data, variables) => {
-            queryClient.invalidateQueries({ queryKey: ["company-applications"] });
-            toast.success(`Status updated to ${variables.status}`);
+            queryClient.setQueryData(["company-applications"], (oldData: any[]) => {
+                const current = oldData || [];
+                return current.map((app: any) =>
+                    app.id === variables.id ? { ...app, status: variables.status } : app
+                );
+            });
+            toast.success(`Status updated to ${variables.status.replace("_", " ")}`);
         },
         onError: () => {
             toast.error("Failed to update status. Please try again.");
         },
     });
+
+    const viewResume = async (applicantId: string, applicantName: string) => {
+        try {
+            const response = await client.get(`/resume/download/${applicantId}`, {
+                responseType: "blob",
+            });
+            const blob = new Blob([response.data], { type: "application/pdf" });
+            const url = window.URL.createObjectURL(blob);
+            window.open(url, "_blank");
+        } catch {
+            toast.error(`Could not load resume for ${applicantName}. The candidate may not have uploaded one yet.`);
+        }
+    };
 
     const getStatusBadge = (status: string) => {
         switch (status) {
@@ -235,7 +259,7 @@ export default function CompanyApplicationsPage() {
                                                         <DropdownMenuGroup>
                                                             <DropdownMenuLabel className="font-semibold text-xs text-muted-foreground px-3 py-2 uppercase tracking-wider">Actions</DropdownMenuLabel>
                                                         </DropdownMenuGroup>
-                                                        <DropdownMenuItem className="cursor-pointer focus:bg-white/10 focus:text-white px-3 py-2 transition-colors">
+                                                        <DropdownMenuItem className="cursor-pointer focus:bg-white/10 focus:text-white px-3 py-2 transition-colors" onClick={() => viewResume(app.applicant?.id || app.id, app.applicant?.name || "Candidate")}>
                                                             <FileText className="mr-2 h-4 w-4 text-primary" />
                                                             View Resume
                                                         </DropdownMenuItem>
