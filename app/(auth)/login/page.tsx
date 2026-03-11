@@ -76,13 +76,13 @@ export default function LoginPage() {
 
     return (
         <div className="container relative flex min-h-[calc(100vh-4rem)] flex-col items-center justify-center py-10">
-            <div className="absolute inset-0 z-0 bg-grid-white/[0.02]" />
+            <div className="absolute inset-0 z-0 pointer-events-none bg-grid-white/[0.02]" />
 
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, type: "spring", stiffness: 100 }}
-                className="z-10 w-full max-w-[400px]"
+                className="relative z-10 w-full max-w-[400px]"
             >
                 <Card className="glass-elevated border-white/10 shadow-2xl relative overflow-hidden">
                     <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
