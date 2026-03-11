@@ -57,64 +57,42 @@ export default function CompanyApplicationsPage() {
         queryKey: ["company-applications"],
         queryFn: async () => {
             try {
-                const response = await client.get("/applications/company");
-                return response.data;
+                // Since there is no /applications/company endpoint,
+                // we first fetch all company jobs, then fetch applications for each job
+                const jobsRes = await client.get("/jobs");
+                const jobs = Array.isArray(jobsRes.data) ? jobsRes.data : (jobsRes.data?.content || []);
+
+                if (!jobs || jobs.length === 0) return [];
+
+                // Fetch applications for all active/previous jobs
+                const appPromises = jobs.map((job: any) =>
+                    client.get(`/applications/job/${job.id}`)
+                        .then(res => res.data)
+                        // Ignore 404s/errors for individual jobs to continue loading others
+                        .catch(() => [])
+                );
+
+                const allResponses = await Promise.all(appPromises);
+
+                // Flatten and return all applications
+                return allResponses.flat();
             } catch (error) {
-                // Mock data
-                return [
-                    {
-                        id: "1",
-                        createdAt: new Date().toISOString(),
-                        status: "APPLIED",
-                        job: { title: "Frontend Developer", id: "j1" },
-                        applicant: {
-                            name: "Alice Smith",
-                            email: "alice@example.com",
-                            profile: { cgpa: 8.5, branch: "Computer Science" }
-                        }
-                    },
-                    {
-                        id: "2",
-                        createdAt: new Date(Date.now() - 86400000).toISOString(),
-                        status: "UNDER_REVIEW",
-                        job: { title: "Frontend Developer", id: "j1" },
-                        applicant: {
-                            name: "Bob Johnson",
-                            email: "bob@example.com",
-                            profile: { cgpa: 7.8, branch: "Information Technology" }
-                        }
-                    },
-                    {
-                        id: "3",
-                        createdAt: new Date(Date.now() - 172800000).toISOString(),
-                        status: "SHORTLISTED",
-                        job: { title: "Backend Developer", id: "j2" },
-                        applicant: {
-                            name: "Charlie Brown",
-                            email: "charlie@example.com",
-                            profile: { cgpa: 9.2, branch: "Computer Science" }
-                        }
-                    }
-                ];
+                console.error("Failed to fetch applications:", error);
+                return [];
             }
         },
     });
 
     const updateStatus = useMutation({
         mutationFn: async ({ id, status }: { id: string; status: string }) => {
-            try {
-                const res = await client.patch(`/applications/${id}/status`, { status });
-                return res.data;
-            } catch (error) {
-                console.warn("Backend status update failed, applying locally", error);
-                return { id, status };
-            }
+            const res = await client.patch(`/applications/${id}/status`, { applicationStatus: status });
+            return res.data;
         },
         onSuccess: (data, variables) => {
             queryClient.setQueryData(["company-applications"], (oldData: any[]) => {
                 const current = oldData || [];
                 return current.map((app: any) =>
-                    app.id === variables.id ? { ...app, status: variables.status } : app
+                    app.id === variables.id ? { ...app, applicationStatus: variables.status } : app
                 );
             });
             toast.success(`Status updated to ${variables.status.replace("_", " ")}`);
@@ -124,16 +102,15 @@ export default function CompanyApplicationsPage() {
         },
     });
 
-    const viewResume = async (applicantId: string, applicantName: string) => {
+    const viewResume = async (applicantName: string) => {
         try {
-            const response = await client.get(`/resume/download/${applicantId}`, {
-                responseType: "blob",
-            });
-            const blob = new Blob([response.data], { type: "application/pdf" });
-            const url = window.URL.createObjectURL(blob);
-            window.open(url, "_blank");
+            // Note: The backend endpoint /resume/download does not take an applicant ID
+            // in the path. It downloads the current logged-in user's resume.
+            // Assuming there's a different way to view applicant resumes or this needs a backend change.
+            // Using a generic GET or showing error for now.
+            toast.info(`Resume download is not fully supported in the backend yet. Needs an endpoint that accepts applicandId.`);
         } catch {
-            toast.error(`Could not load resume for ${applicantName}. The candidate may not have uploaded one yet.`);
+            toast.error(`Could not load resume for ${applicantName}.`);
         }
     };
 
@@ -149,8 +126,8 @@ export default function CompanyApplicationsPage() {
     };
 
     const filteredApplications = applications.filter((app: any) =>
-        app.applicant?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        app.job?.title?.toLowerCase().includes(searchTerm.toLowerCase())
+        (app.studentName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (app.jobTitle || "").toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     return (
@@ -219,32 +196,30 @@ export default function CompanyApplicationsPage() {
                                             <TableCell className="font-medium px-6 py-4">
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/20 to-violet-500/20 border border-white/10 flex items-center justify-center text-primary font-bold">
-                                                        {app.applicant?.name?.charAt(0) || "U"}
+                                                        {app.studentName?.charAt(0) || "U"}
                                                     </div>
                                                     <div className="flex flex-col">
-                                                        <span className="text-foreground font-semibold">{app.applicant?.name}</span>
-                                                        <span className="text-xs text-muted-foreground mt-0.5">{app.applicant?.email}</span>
+                                                        <span className="text-foreground font-semibold">{app.studentName || "Unknown Applicant"}</span>
+                                                        <span className="text-xs text-muted-foreground mt-0.5">{app.studentEmail}</span>
                                                     </div>
                                                 </div>
                                             </TableCell>
                                             <TableCell className="py-4">
-                                                <span className="font-medium text-foreground/90">{app.job?.title}</span>
+                                                <div className="flex flex-col">
+                                                    <span className="font-medium text-foreground/90">{app.jobTitle}</span>
+                                                    {app.jobType && <span className="text-xs text-muted-foreground">{app.jobType.replace("_", " ")}</span>}
+                                                </div>
                                             </TableCell>
                                             <TableCell className="py-4">
-                                                <div className="flex flex-col gap-1">
-                                                    <div className="flex items-center gap-1.5">
-                                                        <Badge variant="outline" className="bg-black/40 border-white/10 text-xs font-mono">{app.applicant?.profile?.cgpa || "N/A"} CGPA</Badge>
-                                                    </div>
-                                                    <span className="text-xs text-muted-foreground line-clamp-1 max-w-[150px]">
-                                                        {app.applicant?.profile?.branch || "N/A"}
-                                                    </span>
+                                                <div className="flex flex-col gap-1 text-muted-foreground text-sm">
+                                                    Not provided in API
                                                 </div>
                                             </TableCell>
                                             <TableCell className="text-muted-foreground py-4 text-sm font-medium">
-                                                {app.createdAt ? format(new Date(app.createdAt), "MMM d, yyyy") : "N/A"}
+                                                {app.appliedAt ? format(new Date(app.appliedAt), "MMM d, yyyy") : "N/A"}
                                             </TableCell>
                                             <TableCell className="py-4">
-                                                {getStatusBadge(app.status)}
+                                                {getStatusBadge(app.applicationStatus)}
                                             </TableCell>
                                             <TableCell className="text-right px-6 py-4">
                                                 <DropdownMenu>
@@ -259,11 +234,11 @@ export default function CompanyApplicationsPage() {
                                                         <DropdownMenuGroup>
                                                             <DropdownMenuLabel className="font-semibold text-xs text-muted-foreground px-3 py-2 uppercase tracking-wider">Actions</DropdownMenuLabel>
                                                         </DropdownMenuGroup>
-                                                        <DropdownMenuItem className="cursor-pointer focus:bg-white/10 focus:text-white px-3 py-2 transition-colors" onClick={() => viewResume(app.applicant?.id || app.id, app.applicant?.name || "Candidate")}>
+                                                        <DropdownMenuItem className="cursor-pointer focus:bg-white/10 focus:text-white px-3 py-2 transition-colors" onClick={() => viewResume(app.studentName)}>
                                                             <FileText className="mr-2 h-4 w-4 text-primary" />
                                                             View Resume
                                                         </DropdownMenuItem>
-                                                        <DropdownMenuItem className="cursor-pointer focus:bg-white/10 focus:text-white px-3 py-2 transition-colors" onClick={() => window.location.href = `mailto:${app.applicant?.email}`}>
+                                                        <DropdownMenuItem className="cursor-pointer focus:bg-white/10 focus:text-white px-3 py-2 transition-colors" onClick={() => window.location.href = `mailto:${app.studentEmail}`}>
                                                             <Mail className="mr-2 h-4 w-4 text-blue-400" />
                                                             Email Candidate
                                                         </DropdownMenuItem>
@@ -277,7 +252,7 @@ export default function CompanyApplicationsPage() {
                                                                     {STATUSES.map((status) => (
                                                                         <DropdownMenuItem
                                                                             key={status}
-                                                                            className={`cursor-pointer focus:bg-white/10 focus:text-white px-3 py-2 transition-colors ${app.status === status ? "bg-primary/20 text-primary font-semibold" : ""}`}
+                                                                            className={`cursor-pointer focus:bg-white/10 focus:text-white px-3 py-2 transition-colors ${app.applicationStatus === status ? "bg-primary/20 text-primary font-semibold" : ""}`}
                                                                             disabled={updateStatus.isPending}
                                                                             onClick={() => updateStatus.mutate({ id: app.id, status })}
                                                                         >

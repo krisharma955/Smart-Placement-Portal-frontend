@@ -21,7 +21,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 
 const companyProfileSchema = z.object({
-    name: z.string().min(2, "Company name is required"),
+    companyName: z.string().min(2, "Company name is required"),
     website: z.string().url("Must be a valid URL").optional().or(z.literal("")),
     industry: z.string().min(2, "Industry is required"),
     description: z.string().min(10, "Description should be at least 10 characters"),
@@ -37,7 +37,7 @@ export default function CompanyProfile() {
         queryKey: ["company-profile"],
         queryFn: async () => {
             try {
-                const response = await client.get("/company/profile");
+                const response = await client.get("/companies/profile");
                 return response.data;
             } catch (error) {
                 return null; // Local mock init
@@ -52,7 +52,7 @@ export default function CompanyProfile() {
     } = useForm<CompanyProfileFormValues>({
         resolver: zodResolver(companyProfileSchema),
         values: {
-            name: profile?.name || "",
+            companyName: profile?.companyName || "",
             website: profile?.website || "",
             industry: profile?.industry || "",
             description: profile?.description || "",
@@ -63,9 +63,9 @@ export default function CompanyProfile() {
     const updateProfile = useMutation({
         mutationFn: async (data: CompanyProfileFormValues) => {
             if (profile) {
-                return await client.patch("/company/profile", data);
+                return await client.patch("/companies/profile", data);
             } else {
-                return await client.post("/company/profile", data);
+                return await client.post("/companies/profile", data);
             }
         },
         onSuccess: () => {
@@ -109,13 +109,13 @@ export default function CompanyProfile() {
                     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
                         <div className="grid gap-4 md:grid-cols-2">
                             <div className="space-y-2">
-                                <Label htmlFor="name">Company Name</Label>
+                                <Label htmlFor="companyName">Company Name</Label>
                                 <Input
-                                    id="name"
+                                    id="companyName"
                                     placeholder="e.g. Acme Inc"
-                                    {...register("name")}
+                                    {...register("companyName")}
                                 />
-                                {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
+                                {errors.companyName && <p className="text-xs text-destructive">{errors.companyName.message}</p>}
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="website">Website (Optional)</Label>

@@ -39,33 +39,27 @@ export default function StudentApplicationsPage() {
                 return [
                     {
                         id: "1",
-                        createdAt: new Date().toISOString(),
-                        status: "SHORTLISTED",
-                        job: {
-                            title: "Frontend Developer",
-                            company: { name: "Google" },
-                            location: "Bangalore",
-                        }
+                        appliedAt: new Date().toISOString(),
+                        applicationStatus: "SHORTLISTED",
+                        jobTitle: "Frontend Developer",
+                        companyName: "Google",
+                        jobType: "FULL_TIME"
                     },
                     {
                         id: "2",
-                        createdAt: new Date().toISOString(),
-                        status: "UNDER_REVIEW",
-                        job: {
-                            title: "Software Engineer",
-                            company: { name: "Microsoft" },
-                            location: "Hyderabad",
-                        }
+                        appliedAt: new Date().toISOString(),
+                        applicationStatus: "UNDER_REVIEW",
+                        jobTitle: "Software Engineer",
+                        companyName: "Microsoft",
+                        jobType: "FULL_TIME"
                     },
                     {
                         id: "3",
-                        createdAt: new Date().toISOString(),
-                        status: "REJECTED",
-                        job: {
-                            title: "Data Analyst",
-                            company: { name: "Meta" },
-                            location: "Remote",
-                        }
+                        appliedAt: new Date().toISOString(),
+                        applicationStatus: "REJECTED",
+                        jobTitle: "Data Analyst",
+                        companyName: "Meta",
+                        jobType: "FULL_TIME"
                     }
                 ];
             }
@@ -84,8 +78,8 @@ export default function StudentApplicationsPage() {
     };
 
     const filteredApplications = applications.filter((app: any) =>
-        app.job?.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        app.job?.company?.name?.toLowerCase().includes(searchTerm.toLowerCase())
+        (app.jobTitle || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (app.companyName || "").toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     return (
@@ -142,7 +136,7 @@ export default function StudentApplicationsPage() {
                                     <TableRow className="hover:bg-transparent">
                                         <TableHead className="font-semibold text-muted-foreground h-12 px-6">Company</TableHead>
                                         <TableHead className="font-semibold text-muted-foreground h-12">Role</TableHead>
-                                        <TableHead className="font-semibold text-muted-foreground h-12">Location</TableHead>
+                                        <TableHead className="font-semibold text-muted-foreground h-12">Job Type</TableHead>
                                         <TableHead className="font-semibold text-muted-foreground h-12">Applied Date</TableHead>
                                         <TableHead className="font-semibold text-muted-foreground h-12 px-6">Status</TableHead>
                                     </TableRow>
@@ -155,18 +149,20 @@ export default function StudentApplicationsPage() {
                                                     <div className="w-10 h-10 rounded-xl bg-black/40 border border-white/10 flex items-center justify-center text-primary/80 group-hover:bg-primary/10 transition-colors">
                                                         <Building2 className="h-5 w-5" />
                                                     </div>
-                                                    <span className="text-foreground font-semibold">{app.job?.company?.name}</span>
+                                                    <span className="text-foreground font-semibold">{app.companyName}</span>
                                                 </div>
                                             </TableCell>
                                             <TableCell className="py-4">
-                                                <span className="font-medium text-foreground/90">{app.job?.title}</span>
+                                                <span className="font-medium text-foreground/90">{app.jobTitle}</span>
                                             </TableCell>
-                                            <TableCell className="text-muted-foreground py-4 text-sm font-medium">{app.job?.location}</TableCell>
                                             <TableCell className="text-muted-foreground py-4 text-sm font-medium">
-                                                {app.createdAt ? format(new Date(app.createdAt), "MMM d, yyyy") : "N/A"}
+                                                {app.jobType ? app.jobType.replace("_", " ") : "N/A"}
+                                            </TableCell>
+                                            <TableCell className="text-muted-foreground py-4 text-sm font-medium">
+                                                {app.appliedAt ? format(new Date(app.appliedAt), "MMM d, yyyy") : "N/A"}
                                             </TableCell>
                                             <TableCell className="py-4 px-6">
-                                                {getStatusBadge(app.status)}
+                                                {getStatusBadge(app.applicationStatus)}
                                             </TableCell>
                                         </TableRow>
                                     ))}

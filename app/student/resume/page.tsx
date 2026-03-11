@@ -123,18 +123,23 @@ export default function ResumePage() {
 
     const deleteResume = async () => {
         try {
-            // await client.delete("/resume"); // Wait for real backend integration
+            await client.delete("/resume");
             toast.success("Resume deleted successfully!");
-            refetch(); // For now will just clear local mock state
+            refetch();
         } catch {
             toast.error("Failed to delete resume");
         }
     };
 
-    const handleDownload = () => {
-        if (resume?.fileUrl) {
-            window.open(resume.fileUrl, '_blank');
-        } else {
+    const handleDownload = async () => {
+        try {
+            const response = await client.get("/resume/download", {
+                responseType: "blob",
+            });
+            const blob = new Blob([response.data], { type: "application/pdf" });
+            const url = window.URL.createObjectURL(blob);
+            window.open(url, "_blank");
+        } catch {
             toast.error("Resume document is not available for download right now");
         }
     };

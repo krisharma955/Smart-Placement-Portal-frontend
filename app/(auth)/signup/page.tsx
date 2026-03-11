@@ -28,7 +28,7 @@ import { Role } from "@/lib/types";
 const signupSchema = z.object({
     name: z.string().min(2, "Name must be at least 2 characters"),
     email: z.string().email("Invalid email address"),
-    password: z.string().min(6, "Password must be at least 6 characters"),
+    password: z.string().min(4, "Password must be at least 4 characters"),
 });
 
 type SignupFormValues = z.infer<typeof signupSchema>;
@@ -56,19 +56,19 @@ export default function SignupPage() {
                 role,
             });
 
-            let loggedInUser = response.data.user || response.data;
-            let accToken = response.data.accessToken || response.data.token || response.data.jwt;
+            let loggedInUser = response.data;
+            let accToken = response.data.accessToken;
             let refToken = response.data.refreshToken || "";
 
             // If API didn't return tokens with signup, auto-login them immediately
-            if (!accToken || !loggedInUser) {
+            if (!accToken) {
                 try {
                     const loginRes = await client.post("/auth/login", {
                         email: data.email,
                         password: data.password,
                     });
-                    loggedInUser = loginRes.data.user || loginRes.data;
-                    accToken = loginRes.data.accessToken || loginRes.data.token || loginRes.data.jwt;
+                    loggedInUser = loginRes.data;
+                    accToken = loginRes.data.accessToken;
                     refToken = loginRes.data.refreshToken || "";
                 } catch (loginErr) {
                     toast.success("Account created successfully! Please log in.");

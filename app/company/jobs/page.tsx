@@ -58,11 +58,11 @@ export default function CompanyJobsPage() {
         queryKey: ["company-jobs"],
         queryFn: async () => {
             try {
-                const response = await client.get("/jobs/company");
+                const response = await client.get("/jobs");
                 const data = response.data;
                 return Array.isArray(data) ? data : (data?.content || []);
             } catch (error) {
-                console.error("Failed to fetch company jobs:", error);
+                console.error("Failed to fetch jobs:", error);
                 return [];
             }
         },
@@ -144,8 +144,9 @@ export default function CompanyJobsPage() {
             }
 
             // Convert comma-separated skills string to array
+            // Backend DTO field is 'skills' (mapper converts to requiredSkills in entity)
             if (data.requiredSkills && data.requiredSkills.trim() !== "") {
-                payload.requiredSkills = data.requiredSkills.split(",").map((s: string) => s.trim()).filter(Boolean);
+                payload.skills = data.requiredSkills.split(",").map((s: string) => s.trim()).filter(Boolean);
             }
 
             if (editingJob) {
@@ -171,28 +172,23 @@ export default function CompanyJobsPage() {
         },
     });
 
-    const toggleJobStatus = useMutation({
-        mutationFn: async ({ id, status }: { id: string; status: string }) => {
-            const res = await client.patch(`/jobs/${id}`, { jobPostingStatus: status });
-            return res.data;
+    // Close job via dedicated endpoint PATCH /jobs/{id}/close
+    const closeJob = useMutation({
+        mutationFn: async (jobId: string) => {
+            await client.patch(`/jobs/${jobId}/close`);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["company-jobs"] });
-            toast.success("Job status updated!");
+            toast.success("Job closed successfully!");
         },
         onError: (error: any) => {
-            toast.error(error.response?.data?.message || "Failed to update status.");
+            toast.error(error.response?.data?.message || "Failed to close job.");
         },
     });
 
     const onSubmit = (data: JobFormValues) => {
         saveJob.mutate(data);
     };
-
-    // Helper to get the status from backend (could be status or jobPostingStatus)
-    const getJobStatus = (job: any) => job.jobPostingStatus || job.status || "OPEN";
-    const getJobType = (job: any) => job.jobType || job.type || "FULL_TIME";
-    const getPostedDate = (job: any) => job.postedAt || job.createdAt;
 
     if (view === "form") {
         return (
@@ -325,13 +321,13 @@ export default function CompanyJobsPage() {
             ) : (
                 <div className="grid gap-6">
                     {jobs.map((job: any) => (
-                        <Card key={job.id} className={`glass flex flex-col border-white/5 relative overflow-hidden transition-all duration-300 hover:shadow-glow-primary hover:border-white/10 hover:-translate-y-1 ${getJobStatus(job) === "CLOSED" ? "opacity-60 grayscale-[0.3]" : ""}`}>
+                        <Card key={job.id} className={`glass flex flex-col border-white/5 relative overflow-hidden transition-all duration-300 hover:shadow-glow-primary hover:border-white/10 hover:-translate-y-1 ${job.jobPostingStatus === "CLOSE" ? "opacity-60 grayscale-[0.3]" : ""}`}>
                             <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                             <CardHeader className="md:flex-row justify-between items-start gap-4 space-y-0 p-6 relative z-10">
                                 <div className="space-y-1.5 flex-1">
                                     <div className="flex items-center gap-3">
                                         <h3 className="font-bold text-xl text-foreground/90">{job.title}</h3>
-                                        {getJobStatus(job) === "OPEN" ? (
+                                        {job.jobPostingStatus === "OPEN" ? (
                                             <Badge className="bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.2)]">Active</Badge>
                                         ) : (
                                             <Badge variant="secondary" className="bg-white/5 text-muted-foreground border-white/10">Closed</Badge>
@@ -339,7 +335,7 @@ export default function CompanyJobsPage() {
                                     </div>
                                     <div className="flex flex-wrap items-center text-muted-foreground text-sm gap-x-5 gap-y-2 mt-3 font-medium">
                                         <span className="flex items-center"><MapPin className="h-4 w-4 mr-1.5 text-primary/70" />{job.location}</span>
-                                        <span className="flex items-center"><BriefcaseIcon className="h-4 w-4 mr-1.5 text-violet-400/70" />{getJobType(job).replace("_", " ")}</span>
+                                        <span className="flex items-center"><BriefcaseIcon className="h-4 w-4 mr-1.5 text-violet-400/70" />{(job.jobType || "FULL_TIME").replace("_", " ")}</span>
                                         {job.openings && <span className="flex items-center"><Users className="h-4 w-4 mr-1.5 text-blue-400/70" />{job.openings} opening{job.openings > 1 ? "s" : ""}</span>}
                                         {(job.minSalary || job.maxSalary) && (
                                             <span className="flex items-center"><Banknote className="h-4 w-4 mr-1.5 text-emerald-400/70" />
@@ -347,7 +343,7 @@ export default function CompanyJobsPage() {
                                             </span>
                                         )}
                                         {job.deadline && <span className="flex items-center"><Calendar className="h-4 w-4 mr-1.5 text-red-400/70" />Deadline: {format(new Date(job.deadline), "MMM d, yyyy")}</span>}
-                                        {getPostedDate(job) && <span className="flex items-center text-xs opacity-80 border-l border-white/10 pl-5">Posted on {format(new Date(getPostedDate(job)), "MMM d, yyyy")}</span>}
+                                        {job.postedAt && <span className="flex items-center text-xs opacity-80 border-l border-white/10 pl-5">Posted on {format(new Date(job.postedAt), "MMM d, yyyy")}</span>}
                                     </div>
                                     {job.requiredSkills && job.requiredSkills.length > 0 && (
                                         <div className="flex flex-wrap gap-2 mt-3">
@@ -362,19 +358,18 @@ export default function CompanyJobsPage() {
                                         <Pencil className="h-4 w-4 mr-2 text-blue-400" />
                                         Edit
                                     </Button>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className={`h-10 px-4 rounded-xl transition-all border ${getJobStatus(job) === "OPEN" ? "bg-red-500/10 border-red-500/20 text-red-500 hover:bg-red-500/20" : "bg-emerald-500/10 border-emerald-500/20 text-emerald-500 hover:bg-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.2)]"}`}
-                                        onClick={() => toggleJobStatus.mutate({
-                                            id: job.id,
-                                            status: getJobStatus(job) === "OPEN" ? "CLOSED" : "OPEN"
-                                        })}
-                                        disabled={toggleJobStatus.isPending}
-                                    >
-                                        {getJobStatus(job) === "OPEN" ? <EyeOff className="h-4 w-4 mr-2" /> : <Eye className="h-4 w-4 mr-2" />}
-                                        {getJobStatus(job) === "OPEN" ? "Close Job" : "Reopen Job"}
-                                    </Button>
+                                    {job.jobPostingStatus === "OPEN" && (
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="h-10 px-4 rounded-xl transition-all border bg-red-500/10 border-red-500/20 text-red-500 hover:bg-red-500/20"
+                                            onClick={() => closeJob.mutate(job.id)}
+                                            disabled={closeJob.isPending}
+                                        >
+                                            <EyeOff className="h-4 w-4 mr-2" />
+                                            Close Job
+                                        </Button>
+                                    )}
                                 </div>
                             </CardHeader>
                         </Card>

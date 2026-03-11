@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/card";
 
 const profileSchema = z.object({
+    phoneNumber: z.string().optional(),
     college: z.string().min(2, "College name is required"),
     degree: z.string().min(2, "Degree is required"),
     branch: z.string().min(2, "Branch is required"),
@@ -66,6 +67,7 @@ export default function StudentProfile() {
     } = useForm<ProfileFormValues>({
         resolver: zodResolver(profileSchema),
         values: {
+            phoneNumber: profile?.phoneNumber || "",
             college: profile?.college || "",
             degree: profile?.degree || "",
             branch: profile?.branch || "",
@@ -146,6 +148,12 @@ export default function StudentProfile() {
                     </CardHeader>
                     <CardContent className="space-y-6">
                         <div className="grid gap-6 md:grid-cols-2">
+                            {profile.phoneNumber && (
+                                <div className="space-y-1">
+                                    <span className="text-sm text-muted-foreground uppercase tracking-wider font-semibold">Phone</span>
+                                    <p className="font-medium text-lg text-foreground/90">{profile.phoneNumber}</p>
+                                </div>
+                            )}
                             <div className="space-y-1">
                                 <span className="text-sm text-muted-foreground uppercase tracking-wider font-semibold">College/University</span>
                                 <p className="font-medium text-lg text-foreground/90">{profile.college}</p>
@@ -214,6 +222,16 @@ export default function StudentProfile() {
                 <CardContent>
                     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
                         <div className="grid gap-4 md:grid-cols-2">
+                            <div className="space-y-2">
+                                <Label htmlFor="phoneNumber">Phone Number</Label>
+                                <Input
+                                    id="phoneNumber"
+                                    placeholder="e.g. +91 9876543210"
+                                    {...register("phoneNumber")}
+                                    className="bg-black/20 focus-visible:ring-primary h-12"
+                                />
+                                {errors.phoneNumber && <p className="text-xs text-destructive">{errors.phoneNumber.message}</p>}
+                            </div>
                             <div className="space-y-2">
                                 <Label htmlFor="college">College/University</Label>
                                 <Input

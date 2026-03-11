@@ -26,7 +26,7 @@ import {
 
 const loginSchema = z.object({
     email: z.string().email("Invalid email address"),
-    password: z.string().min(1, "Password is required"),
+    password: z.string().min(4, "Password must be at least 4 characters"),
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
@@ -50,9 +50,9 @@ export default function LoginPage() {
         try {
             const response = await client.post("/auth/login", data);
 
-            // Dynamically check for token variants the API might be passing back
-            const user = response.data.user || response.data;
-            const accessToken = response.data.accessToken || response.data.token || response.data.jwt;
+            // The backend returns AuthResponse = { accessToken, refreshToken, name, email, role }
+            const user = response.data;
+            const accessToken = response.data.accessToken;
             const refreshToken = response.data.refreshToken || "";
 
             if (!accessToken) {
