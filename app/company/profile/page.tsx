@@ -22,7 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 const companyProfileSchema = z.object({
     companyName: z.string().min(2, "Company name is required"),
-    website: z.string().url("Must be a valid URL").optional().or(z.literal("")),
+    website: z.string().optional().refine(val => !val || z.string().url().safeParse(val).success, "Must be a valid URL"),
     industry: z.string().min(2, "Industry is required"),
     description: z.string().min(10, "Description should be at least 10 characters"),
     location: z.string().min(2, "HQ Location is required"),
@@ -106,7 +106,7 @@ export default function CompanyProfile() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+                    <form onSubmit={handleSubmit(onSubmit, (errs) => console.log('Form errors:', errs))} className="space-y-6">
                         <div className="grid gap-4 md:grid-cols-2">
                             <div className="space-y-2">
                                 <Label htmlFor="companyName">Company Name</Label>
