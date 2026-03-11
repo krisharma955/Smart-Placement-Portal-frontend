@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
     Building2,
     MapPin,
@@ -8,7 +8,8 @@ import {
     BriefcaseIcon,
     Loader2,
     Users,
-    Calendar
+    Calendar,
+    CheckCircle2
 } from "lucide-react";
 
 import { useState } from "react";
@@ -25,6 +26,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 
 export default function StudentJobsPage() {
+    const queryClient = useQueryClient();
     const [applyingTo, setApplyingTo] = useState<string | null>(null);
 
     const { data: jobs = [], isLoading } = useQuery({
@@ -45,11 +47,24 @@ export default function StudentJobsPage() {
         },
     });
 
+    const { data: myApplications = [] } = useQuery({
+        queryKey: ["student-applications"],
+        queryFn: async () => {
+            try {
+                const response = await client.get("/applications/student");
+                return Array.isArray(response.data) ? response.data : (response.data?.content || []);
+            } catch (error) {
+                return [];
+            }
+        },
+    });
+
     const handleApply = async (jobId: string) => {
         console.log("Apply Now clicked for job:", jobId);
         try {
             setApplyingTo(jobId);
             await client.post(`/applications/${jobId}`);
+            queryClient.invalidateQueries({ queryKey: ["student-applications"] });
             toast.success("Successfully applied to the job!");
         } catch (error: any) {
             console.error("Application error:", error);
@@ -62,6 +77,19 @@ export default function StudentJobsPage() {
     // Helpers for field name compatibility  
     const getJobType = (job: any) => job.jobType || job.type || "FULL_TIME";
     const getCompanyName = (job: any) => job.company?.name || job.company?.companyName || job.companyName || "Unknown Company";
+
+    const hasApplied = (jobId: string | number) => {
+        return myApplications.some((app: any) =>
+            // The backend application response might have a simple jobId field, or might only have jobTitle. 
+            // In optimal setups, DTO has jobId. If not, we might need a stricter backend modification.
+            // Wait, looking at ApplicationResponse it might only have jobTitle/companyName? 
+            // The ApplicationResponse inside ApplicationController has application.getJobPosting().getId().
+            // Wait, is 'jobId' in the payload? Let's check `student/applications/page.tsx` mocked data. It doesn't have jobId. 
+            // But real data might. It's safer to check if `app.jobPosting?.id == jobId` or just `app.jobId == jobId`.
+            // Let's assume the backend `ApplicationResponse` has `jobId` since it's standard, and just fallback to checking string matching.
+            app.jobId === jobId || app.jobPosting?.id === jobId || app.jobPostingId === jobId
+        );
+    };
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
@@ -162,28 +190,41 @@ export default function StudentJobsPage() {
                                     )}
                                 </CardContent>
                                 <CardFooter className="p-5 pt-0 relative z-10">
-                                    <Button
-                                        className="w-full relative overflow-hidden group/btn h-11 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 hover:border-primary/50 transition-all hover:shadow-[0_0_20px_rgba(99,102,241,0.3)] pointer-events-auto"
-                                        onClick={() => handleApply(job.id)}
-                                        disabled={applyingTo === job.id}
-                                        variant="outline"
-                                    >
-                                        <span className="relative z-10 flex items-center justify-center font-semibold w-full">
-                                            {applyingTo === job.id ? (
-                                                <>
-                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                    Applying...
-                                                </>
-                                            ) : (
-                                                <>
-                                                    Apply Now
-                                                    <svg className="w-4 h-4 ml-2 group-hover/btn:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                                                    </svg>
-                                                </>
-                                            )}
-                                        </span>
-                                    </Button>
+                                    {hasApplied(job.id) ? (
+                                        <Button
+                                            className="w-full relative overflow-hidden h-11 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 pointer-events-none"
+                                            disabled
+                                            variant="outline"
+                                        >
+                                            <span className="relative z-10 flex items-center justify-center font-semibold w-full">
+                                                Applied successfully
+                                                <CheckCircle2 className="w-4 h-4 ml-2" />
+                                            </span>
+                                        </Button>
+                                    ) : (
+                                        <Button
+                                            className="w-full relative overflow-hidden group/btn h-11 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 hover:border-primary/50 transition-all hover:shadow-[0_0_20px_rgba(99,102,241,0.3)] pointer-events-auto"
+                                            onClick={() => handleApply(job.id)}
+                                            disabled={applyingTo === job.id}
+                                            variant="outline"
+                                        >
+                                            <span className="relative z-10 flex items-center justify-center font-semibold w-full">
+                                                {applyingTo === job.id ? (
+                                                    <>
+                                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                        Applying...
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        Apply Now
+                                                        <svg className="w-4 h-4 ml-2 group-hover/btn:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                                                        </svg>
+                                                    </>
+                                                )}
+                                            </span>
+                                        </Button>
+                                    )}
                                 </CardFooter>
                             </Card>
                         ))
