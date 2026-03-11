@@ -8,7 +8,6 @@ import * as z from "zod";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import {
-    Building2,
     MapPin,
     Banknote,
     BriefcaseIcon,
@@ -17,7 +16,9 @@ import {
     Pencil,
     EyeOff,
     Eye,
-    ArrowLeft
+    ArrowLeft,
+    Users,
+    Calendar
 } from "lucide-react";
 
 import { client } from "@/lib/api/client";
@@ -29,21 +30,21 @@ import { Badge } from "@/components/ui/badge";
 import {
     Card,
     CardContent,
-    CardFooter,
     CardHeader,
     CardTitle,
-    CardDescription
 } from "@/components/ui/card";
 
+// Schema matches Spring Boot JobPosting entity exactly
 const jobSchema = z.object({
     title: z.string().min(2, "Title must be at least 2 characters"),
-    location: z.string().min(2, "Location must be at least 2 characters"),
-    type: z.enum(["FULL_TIME", "PART_TIME", "INTERNSHIP", "CONTRACT"]),
-    salaryRange: z.string().optional(),
-    experienceLevel: z.string().optional(),
     description: z.string().min(10, "Description must be at least 10 characters"),
-    requirements: z.string().min(10, "Requirements must be at least 10 characters"),
-    status: z.enum(["OPEN", "CLOSED"]),
+    location: z.string().min(2, "Location must be at least 2 characters"),
+    jobType: z.enum(["FULL_TIME", "PART_TIME", "INTERNSHIP", "CONTRACT"]),
+    minSalary: z.string().optional(),
+    maxSalary: z.string().optional(),
+    openings: z.string().min(1, "Number of openings is required"),
+    deadline: z.string().min(1, "Application deadline is required"),
+    requiredSkills: z.string().optional(),
 });
 
 type JobFormValues = z.infer<typeof jobSchema>;
@@ -58,35 +59,11 @@ export default function CompanyJobsPage() {
         queryFn: async () => {
             try {
                 const response = await client.get("/jobs/company");
-                return response.data;
+                const data = response.data;
+                return Array.isArray(data) ? data : (data?.content || []);
             } catch (error) {
-                // Mock active jobs for company
-                return [
-                    {
-                        id: "1",
-                        title: "Frontend Developer",
-                        location: "Remote",
-                        type: "FULL_TIME",
-                        salaryRange: "$100k - $130k",
-                        experienceLevel: "Entry Level",
-                        description: "Looking for a great frontend developer to join our team.",
-                        requirements: "- 1+ years of React\n- TypeScript knowledge",
-                        status: "OPEN",
-                        createdAt: new Date().toISOString(),
-                    },
-                    {
-                        id: "2",
-                        title: "UX Designer",
-                        location: "New York, NY",
-                        type: "INTERNSHIP",
-                        salaryRange: "$40/hr",
-                        experienceLevel: "Internship",
-                        description: "Help us design the next generation of our product.",
-                        requirements: "- Figma expertise\n- Portfolio required",
-                        status: "CLOSED",
-                        createdAt: new Date(Date.now() - 864000000).toISOString(),
-                    }
-                ];
+                console.error("Failed to fetch company jobs:", error);
+                return [];
             }
         },
     });
@@ -100,13 +77,14 @@ export default function CompanyJobsPage() {
         resolver: zodResolver(jobSchema),
         defaultValues: {
             title: "",
-            location: "",
-            type: "FULL_TIME",
-            salaryRange: "",
-            experienceLevel: "",
             description: "",
-            requirements: "",
-            status: "OPEN",
+            location: "",
+            jobType: "FULL_TIME",
+            minSalary: "",
+            maxSalary: "",
+            openings: "1",
+            deadline: "",
+            requiredSkills: "",
         },
     });
 
@@ -115,24 +93,26 @@ export default function CompanyJobsPage() {
         if (job) {
             reset({
                 title: job.title,
-                location: job.location,
-                type: job.type,
-                salaryRange: job.salaryRange || "",
-                experienceLevel: job.experienceLevel || "",
                 description: job.description,
-                requirements: job.requirements,
-                status: job.status,
+                location: job.location,
+                jobType: job.jobType || "FULL_TIME",
+                minSalary: job.minSalary?.toString() || "",
+                maxSalary: job.maxSalary?.toString() || "",
+                openings: job.openings?.toString() || "1",
+                deadline: job.deadline ? job.deadline.substring(0, 16) : "",
+                requiredSkills: job.requiredSkills ? job.requiredSkills.join(", ") : "",
             });
         } else {
             reset({
                 title: "",
-                location: "",
-                type: "FULL_TIME",
-                salaryRange: "",
-                experienceLevel: "",
                 description: "",
-                requirements: "",
-                status: "OPEN",
+                location: "",
+                jobType: "FULL_TIME",
+                minSalary: "",
+                maxSalary: "",
+                openings: "1",
+                deadline: "",
+                requiredSkills: "",
             });
         }
         setView("form");
@@ -145,71 +125,74 @@ export default function CompanyJobsPage() {
 
     const saveJob = useMutation({
         mutationFn: async (data: JobFormValues) => {
-            try {
-                if (editingJob) {
-                    const res = await client.patch(`/jobs/${editingJob.id}`, data);
-                    return res.data;
-                } else {
-                    const res = await client.post("/jobs", data);
-                    return res.data;
-                }
-            } catch (error) {
-                console.warn("Backend save failed, mocking success locally", error);
+            // Build payload matching Spring Boot JobPosting entity
+            const payload: any = {
+                title: data.title,
+                description: data.description,
+                location: data.location,
+                jobType: data.jobType,
+                openings: parseInt(data.openings, 10),
+                deadline: new Date(data.deadline).toISOString(),
+            };
 
-                // Fallback mock
-                return {
-                    id: editingJob?.id || Date.now().toString(),
-                    ...data,
-                    createdAt: new Date().toISOString(),
-                    _isMocked: true
-                };
+            // Only include salary if provided
+            if (data.minSalary && data.minSalary.trim() !== "") {
+                payload.minSalary = parseFloat(data.minSalary);
+            }
+            if (data.maxSalary && data.maxSalary.trim() !== "") {
+                payload.maxSalary = parseFloat(data.maxSalary);
+            }
+
+            // Convert comma-separated skills string to array
+            if (data.requiredSkills && data.requiredSkills.trim() !== "") {
+                payload.requiredSkills = data.requiredSkills.split(",").map((s: string) => s.trim()).filter(Boolean);
+            }
+
+            if (editingJob) {
+                const res = await client.patch(`/jobs/${editingJob.id}`, payload);
+                return res.data;
+            } else {
+                const res = await client.post("/jobs", payload);
+                return res.data;
             }
         },
-        onSuccess: (savedJob) => {
-            // Optimistically update the query cache so the job actually appears in the list 
-            // even if the backend data GET fails or is being mocked
-            queryClient.setQueryData(["company-jobs"], (oldData: any[]) => {
-                const currentJobs = oldData || [];
-                if (editingJob) {
-                    return currentJobs.map(j => j.id === savedJob.id ? savedJob : j);
-                } else {
-                    return [savedJob, ...currentJobs];
-                }
-            });
-
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["company-jobs"] });
             toast.success(`Job ${editingJob ? "updated" : "created"} successfully!`);
             closeForm();
         },
         onError: (error: any) => {
-            toast.error(error.response?.data?.message || "Failed to save job.");
+            const msg = error.response?.data?.message
+                || error.response?.data?.error
+                || JSON.stringify(error.response?.data)
+                || "Failed to save job.";
+            toast.error(msg);
+            console.error("Job save error:", error.response?.data);
         },
     });
 
     const toggleJobStatus = useMutation({
         mutationFn: async ({ id, status }: { id: string; status: string }) => {
-            try {
-                const res = await client.patch(`/jobs/${id}`, { status });
-                return res.data;
-            } catch (error) {
-                console.warn("Backend status toggle failed, mocking success locally", error);
-                return { id, status };
-            }
+            const res = await client.patch(`/jobs/${id}`, { jobPostingStatus: status });
+            return res.data;
         },
-        onSuccess: (data, variables) => {
-            queryClient.setQueryData(["company-jobs"], (oldData: any[]) => {
-                const currentJobs = oldData || [];
-                return currentJobs.map(j => j.id === variables.id ? { ...j, status: variables.status } : j);
-            });
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["company-jobs"] });
             toast.success("Job status updated!");
         },
-        onError: () => {
-            toast.error("Failed to update status.");
+        onError: (error: any) => {
+            toast.error(error.response?.data?.message || "Failed to update status.");
         },
     });
 
     const onSubmit = (data: JobFormValues) => {
         saveJob.mutate(data);
     };
+
+    // Helper to get the status from backend (could be status or jobPostingStatus)
+    const getJobStatus = (job: any) => job.jobPostingStatus || job.status || "OPEN";
+    const getJobType = (job: any) => job.jobType || job.type || "FULL_TIME";
+    const getPostedDate = (job: any) => job.postedAt || job.createdAt;
 
     if (view === "form") {
         return (
@@ -234,22 +217,22 @@ export default function CompanyJobsPage() {
                         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
                             <div className="grid gap-6 md:grid-cols-2">
                                 <div className="space-y-2">
-                                    <Label htmlFor="title" className="text-muted-foreground font-medium">Job Title</Label>
+                                    <Label htmlFor="title" className="text-muted-foreground font-medium">Job Title *</Label>
                                     <Input id="title" placeholder="e.g. Software Engineer" {...register("title")} className="h-12 bg-black/40 border-white/10 focus-visible:ring-primary focus-visible:border-primary transition-all rounded-xl" />
                                     {errors.title && <p className="text-xs text-destructive">{errors.title.message}</p>}
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="location" className="text-muted-foreground font-medium">Location</Label>
-                                    <Input id="location" placeholder="e.g. Remote, NY" {...register("location")} className="h-12 bg-black/40 border-white/10 focus-visible:ring-primary focus-visible:border-primary transition-all rounded-xl" />
+                                    <Label htmlFor="location" className="text-muted-foreground font-medium">Location *</Label>
+                                    <Input id="location" placeholder="e.g. Remote, Bangalore" {...register("location")} className="h-12 bg-black/40 border-white/10 focus-visible:ring-primary focus-visible:border-primary transition-all rounded-xl" />
                                     {errors.location && <p className="text-xs text-destructive">{errors.location.message}</p>}
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="type" className="text-muted-foreground font-medium">Job Type</Label>
+                                    <Label htmlFor="jobType" className="text-muted-foreground font-medium">Job Type *</Label>
                                     <div className="relative">
                                         <select
-                                            id="type"
+                                            id="jobType"
                                             className="flex h-12 w-full appearance-none rounded-xl border border-white/10 bg-black/40 px-4 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-primary transition-all disabled:cursor-not-allowed disabled:opacity-50"
-                                            {...register("type")}
+                                            {...register("jobType")}
                                         >
                                             <option value="FULL_TIME">Full-Time</option>
                                             <option value="PART_TIME">Part-Time</option>
@@ -257,25 +240,37 @@ export default function CompanyJobsPage() {
                                             <option value="CONTRACT">Contract</option>
                                         </select>
                                     </div>
-                                    {errors.type && <p className="text-xs text-destructive">{errors.type.message}</p>}
+                                    {errors.jobType && <p className="text-xs text-destructive">{errors.jobType.message}</p>}
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="experienceLevel" className="text-muted-foreground font-medium">Experience Level</Label>
-                                    <Input id="experienceLevel" placeholder="e.g. Entry Level, 3+ years" {...register("experienceLevel")} className="h-12 bg-black/40 border-white/10 focus-visible:ring-primary focus-visible:border-primary transition-all rounded-xl" />
+                                    <Label htmlFor="openings" className="text-muted-foreground font-medium">Number of Openings *</Label>
+                                    <Input id="openings" type="number" min="1" placeholder="e.g. 3" {...register("openings")} className="h-12 bg-black/40 border-white/10 focus-visible:ring-primary focus-visible:border-primary transition-all rounded-xl" />
+                                    {errors.openings && <p className="text-xs text-destructive">{errors.openings.message}</p>}
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="minSalary" className="text-muted-foreground font-medium">Min Salary (₹)</Label>
+                                    <Input id="minSalary" type="number" min="0" placeholder="e.g. 500000" {...register("minSalary")} className="h-12 bg-black/40 border-white/10 focus-visible:ring-primary focus-visible:border-primary transition-all rounded-xl" />
+                                    {errors.minSalary && <p className="text-xs text-destructive">{errors.minSalary.message}</p>}
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="maxSalary" className="text-muted-foreground font-medium">Max Salary (₹)</Label>
+                                    <Input id="maxSalary" type="number" min="0" placeholder="e.g. 1200000" {...register("maxSalary")} className="h-12 bg-black/40 border-white/10 focus-visible:ring-primary focus-visible:border-primary transition-all rounded-xl" />
+                                    {errors.maxSalary && <p className="text-xs text-destructive">{errors.maxSalary.message}</p>}
                                 </div>
                                 <div className="space-y-2 md:col-span-2">
-                                    <Label htmlFor="salaryRange" className="text-muted-foreground font-medium">Salary Range (Optional)</Label>
-                                    <Input id="salaryRange" placeholder="e.g. $100k - $120k" {...register("salaryRange")} className="h-12 bg-black/40 border-white/10 focus-visible:ring-primary focus-visible:border-primary transition-all rounded-xl" />
+                                    <Label htmlFor="deadline" className="text-muted-foreground font-medium">Application Deadline *</Label>
+                                    <Input id="deadline" type="datetime-local" {...register("deadline")} className="h-12 bg-black/40 border-white/10 focus-visible:ring-primary focus-visible:border-primary transition-all rounded-xl" />
+                                    {errors.deadline && <p className="text-xs text-destructive">{errors.deadline.message}</p>}
                                 </div>
                                 <div className="space-y-2 md:col-span-2">
-                                    <Label htmlFor="description" className="text-muted-foreground font-medium">Job Description</Label>
+                                    <Label htmlFor="description" className="text-muted-foreground font-medium">Job Description *</Label>
                                     <Textarea id="description" className="min-h-[140px] bg-black/40 border-white/10 focus-visible:ring-primary focus-visible:border-primary transition-all rounded-xl resize-y" placeholder="Detailed description of the role..." {...register("description")} />
                                     {errors.description && <p className="text-xs text-destructive">{errors.description.message}</p>}
                                 </div>
                                 <div className="space-y-2 md:col-span-2">
-                                    <Label htmlFor="requirements" className="text-muted-foreground font-medium">Requirements</Label>
-                                    <Textarea id="requirements" className="min-h-[140px] bg-black/40 border-white/10 focus-visible:ring-primary focus-visible:border-primary transition-all rounded-xl resize-y" placeholder="List of requirements or qualifications..." {...register("requirements")} />
-                                    {errors.requirements && <p className="text-xs text-destructive">{errors.requirements.message}</p>}
+                                    <Label htmlFor="requiredSkills" className="text-muted-foreground font-medium">Required Skills</Label>
+                                    <Input id="requiredSkills" placeholder="e.g. React, Java, Spring Boot (comma-separated)" {...register("requiredSkills")} className="h-12 bg-black/40 border-white/10 focus-visible:ring-primary focus-visible:border-primary transition-all rounded-xl" />
+                                    <p className="text-xs text-muted-foreground">Separate skills with commas</p>
                                 </div>
                             </div>
 
@@ -330,13 +325,13 @@ export default function CompanyJobsPage() {
             ) : (
                 <div className="grid gap-6">
                     {jobs.map((job: any) => (
-                        <Card key={job.id} className={`glass flex flex-col border-white/5 relative overflow-hidden transition-all duration-300 hover:shadow-glow-primary hover:border-white/10 hover:-translate-y-1 ${job.status === "CLOSED" ? "opacity-60 grayscale-[0.3]" : ""}`}>
+                        <Card key={job.id} className={`glass flex flex-col border-white/5 relative overflow-hidden transition-all duration-300 hover:shadow-glow-primary hover:border-white/10 hover:-translate-y-1 ${getJobStatus(job) === "CLOSED" ? "opacity-60 grayscale-[0.3]" : ""}`}>
                             <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                             <CardHeader className="md:flex-row justify-between items-start gap-4 space-y-0 p-6 relative z-10">
                                 <div className="space-y-1.5 flex-1">
                                     <div className="flex items-center gap-3">
                                         <h3 className="font-bold text-xl text-foreground/90">{job.title}</h3>
-                                        {job.status === "OPEN" ? (
+                                        {getJobStatus(job) === "OPEN" ? (
                                             <Badge className="bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.2)]">Active</Badge>
                                         ) : (
                                             <Badge variant="secondary" className="bg-white/5 text-muted-foreground border-white/10">Closed</Badge>
@@ -344,9 +339,23 @@ export default function CompanyJobsPage() {
                                     </div>
                                     <div className="flex flex-wrap items-center text-muted-foreground text-sm gap-x-5 gap-y-2 mt-3 font-medium">
                                         <span className="flex items-center"><MapPin className="h-4 w-4 mr-1.5 text-primary/70" />{job.location}</span>
-                                        <span className="flex items-center"><BriefcaseIcon className="h-4 w-4 mr-1.5 text-violet-400/70" />{job.type.replace("_", " ")}</span>
-                                        <span className="flex items-center text-xs opacity-80 border-l border-white/10 pl-5">Posted on {format(new Date(job.createdAt), "MMM d, yyyy")}</span>
+                                        <span className="flex items-center"><BriefcaseIcon className="h-4 w-4 mr-1.5 text-violet-400/70" />{getJobType(job).replace("_", " ")}</span>
+                                        {job.openings && <span className="flex items-center"><Users className="h-4 w-4 mr-1.5 text-blue-400/70" />{job.openings} opening{job.openings > 1 ? "s" : ""}</span>}
+                                        {(job.minSalary || job.maxSalary) && (
+                                            <span className="flex items-center"><Banknote className="h-4 w-4 mr-1.5 text-emerald-400/70" />
+                                                {job.minSalary && job.maxSalary ? `₹${job.minSalary.toLocaleString()} - ₹${job.maxSalary.toLocaleString()}` : job.minSalary ? `₹${job.minSalary.toLocaleString()}+` : `Up to ₹${job.maxSalary.toLocaleString()}`}
+                                            </span>
+                                        )}
+                                        {job.deadline && <span className="flex items-center"><Calendar className="h-4 w-4 mr-1.5 text-red-400/70" />Deadline: {format(new Date(job.deadline), "MMM d, yyyy")}</span>}
+                                        {getPostedDate(job) && <span className="flex items-center text-xs opacity-80 border-l border-white/10 pl-5">Posted on {format(new Date(getPostedDate(job)), "MMM d, yyyy")}</span>}
                                     </div>
+                                    {job.requiredSkills && job.requiredSkills.length > 0 && (
+                                        <div className="flex flex-wrap gap-2 mt-3">
+                                            {job.requiredSkills.map((skill: string) => (
+                                                <Badge key={skill} variant="outline" className="bg-black/40 border-white/10 text-muted-foreground text-xs">{skill}</Badge>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="flex items-center gap-3 shrink-0">
                                     <Button variant="outline" size="sm" onClick={() => openForm(job)} className="h-10 px-4 bg-black/40 border-white/10 hover:bg-white/5 hover:text-white rounded-xl transition-all">
@@ -356,15 +365,15 @@ export default function CompanyJobsPage() {
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        className={`h-10 px-4 rounded-xl transition-all border ${job.status === "OPEN" ? "bg-red-500/10 border-red-500/20 text-red-500 hover:bg-red-500/20" : "bg-emerald-500/10 border-emerald-500/20 text-emerald-500 hover:bg-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.2)]"}`}
+                                        className={`h-10 px-4 rounded-xl transition-all border ${getJobStatus(job) === "OPEN" ? "bg-red-500/10 border-red-500/20 text-red-500 hover:bg-red-500/20" : "bg-emerald-500/10 border-emerald-500/20 text-emerald-500 hover:bg-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.2)]"}`}
                                         onClick={() => toggleJobStatus.mutate({
                                             id: job.id,
-                                            status: job.status === "OPEN" ? "CLOSED" : "OPEN"
+                                            status: getJobStatus(job) === "OPEN" ? "CLOSED" : "OPEN"
                                         })}
                                         disabled={toggleJobStatus.isPending}
                                     >
-                                        {job.status === "OPEN" ? <EyeOff className="h-4 w-4 mr-2" /> : <Eye className="h-4 w-4 mr-2" />}
-                                        {job.status === "OPEN" ? "Close Job" : "Reopen Job"}
+                                        {getJobStatus(job) === "OPEN" ? <EyeOff className="h-4 w-4 mr-2" /> : <Eye className="h-4 w-4 mr-2" />}
+                                        {getJobStatus(job) === "OPEN" ? "Close Job" : "Reopen Job"}
                                     </Button>
                                 </div>
                             </CardHeader>

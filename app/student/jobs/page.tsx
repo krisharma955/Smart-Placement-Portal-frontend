@@ -6,7 +6,9 @@ import {
     MapPin,
     Banknote,
     BriefcaseIcon,
-    Loader2
+    Loader2,
+    Users,
+    Calendar
 } from "lucide-react";
 
 import { client } from "@/lib/api/client";
@@ -19,6 +21,7 @@ import {
     CardHeader,
 } from "@/components/ui/card";
 import { toast } from "sonner";
+import { format } from "date-fns";
 
 export default function StudentJobsPage() {
 
@@ -32,12 +35,7 @@ export default function StudentJobsPage() {
                 // Handle paginated Spring Boot responses (e.g. { content: [...] })
                 const jobsList = Array.isArray(data) ? data : (data?.content || []);
 
-                // Normalize backend field names to what the UI expects
-                return jobsList.map((job: any) => ({
-                    ...job,
-                    company: job.company || { name: job.companyName || job.postedBy?.companyName || "Unknown Company" },
-                    skills: job.skills || job.requiredSkills || [],
-                }));
+                return jobsList;
             } catch (error) {
                 console.error("Failed to fetch jobs:", error);
                 return [];
@@ -53,6 +51,10 @@ export default function StudentJobsPage() {
             toast.error(error.response?.data?.message || "Failed to apply. You might have already applied.");
         }
     };
+
+    // Helpers for field name compatibility  
+    const getJobType = (job: any) => job.jobType || job.type || "FULL_TIME";
+    const getCompanyName = (job: any) => job.company?.name || job.company?.companyName || job.companyName || "Unknown Company";
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
@@ -85,21 +87,18 @@ export default function StudentJobsPage() {
                                             </h3>
                                             <div className="flex items-center text-muted-foreground mt-1.5 border border-white/10 bg-black/20 w-max px-2.5 py-1 rounded-full text-xs font-medium">
                                                 <Building2 className="h-3.5 w-3.5 mr-1.5 text-primary/70" />
-                                                <span>{job.company?.name}</span>
+                                                <span>{getCompanyName(job)}</span>
                                             </div>
                                         </div>
                                     </div>
                                     <div className="mt-4 flex gap-2">
-                                        {job.type === "FULL_TIME" && (
-                                            <Badge variant="secondary" className="bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border-blue-500/20">
-                                                Full-Time
-                                            </Badge>
-                                        )}
-                                        {job.type === "INTERNSHIP" && (
-                                            <Badge variant="secondary" className="bg-violet-500/10 text-violet-400 hover:bg-violet-500/20 border-violet-500/20">
-                                                Internship
-                                            </Badge>
-                                        )}
+                                        <Badge variant="secondary" className={`${getJobType(job) === "FULL_TIME" ? "bg-blue-500/10 text-blue-400 border-blue-500/20" :
+                                                getJobType(job) === "INTERNSHIP" ? "bg-violet-500/10 text-violet-400 border-violet-500/20" :
+                                                    getJobType(job) === "PART_TIME" ? "bg-amber-500/10 text-amber-400 border-amber-500/20" :
+                                                        "bg-teal-500/10 text-teal-400 border-teal-500/20"
+                                            }`}>
+                                            {getJobType(job).replace("_", " ")}
+                                        </Badge>
                                     </div>
                                 </CardHeader>
                                 <CardContent className="flex-1 space-y-4 p-5 relative z-10">
@@ -110,32 +109,46 @@ export default function StudentJobsPage() {
                                             </div>
                                             {job.location}
                                         </div>
-                                        {job.salaryRange && (
+                                        {(job.minSalary || job.maxSalary) && (
                                             <div className="flex items-center p-2 rounded-lg bg-white/[0.02] border border-white/5">
                                                 <div className="w-8 h-8 rounded-md bg-emerald-500/10 flex items-center justify-center mr-3 text-emerald-500">
                                                     <Banknote className="h-4 w-4" />
                                                 </div>
-                                                {job.salaryRange}
+                                                {job.minSalary && job.maxSalary
+                                                    ? `₹${job.minSalary.toLocaleString()} - ₹${job.maxSalary.toLocaleString()}`
+                                                    : job.minSalary
+                                                        ? `₹${job.minSalary.toLocaleString()}+`
+                                                        : `Up to ₹${job.maxSalary.toLocaleString()}`}
                                             </div>
                                         )}
-                                        <div className="flex items-center p-2 rounded-lg bg-white/[0.02] border border-white/5">
-                                            <div className="w-8 h-8 rounded-md bg-violet-500/10 flex items-center justify-center mr-3 text-violet-500">
-                                                <BriefcaseIcon className="h-4 w-4" />
+                                        {job.openings && (
+                                            <div className="flex items-center p-2 rounded-lg bg-white/[0.02] border border-white/5">
+                                                <div className="w-8 h-8 rounded-md bg-violet-500/10 flex items-center justify-center mr-3 text-violet-500">
+                                                    <Users className="h-4 w-4" />
+                                                </div>
+                                                {job.openings} opening{job.openings > 1 ? "s" : ""}
                                             </div>
-                                            {job.experienceLevel || "Entry Level"}
-                                        </div>
+                                        )}
+                                        {job.deadline && (
+                                            <div className="flex items-center p-2 rounded-lg bg-white/[0.02] border border-white/5">
+                                                <div className="w-8 h-8 rounded-md bg-red-500/10 flex items-center justify-center mr-3 text-red-500">
+                                                    <Calendar className="h-4 w-4" />
+                                                </div>
+                                                Deadline: {format(new Date(job.deadline), "MMM d, yyyy")}
+                                            </div>
+                                        )}
                                     </div>
 
-                                    {job?.skills && job.skills.length > 0 && (
+                                    {job.requiredSkills && job.requiredSkills.length > 0 && (
                                         <div className="mt-4 flex flex-wrap gap-2">
-                                            {job.skills.slice(0, 3).map((skill: string) => (
+                                            {job.requiredSkills.slice(0, 4).map((skill: string) => (
                                                 <Badge key={skill} variant="outline" className="bg-black/40 border-white/10 text-muted-foreground">
                                                     {skill}
                                                 </Badge>
                                             ))}
-                                            {job.skills.length > 3 && (
+                                            {job.requiredSkills.length > 4 && (
                                                 <Badge variant="outline" className="bg-black/40 border-white/10 text-muted-foreground">
-                                                    +{job.skills.length - 3}
+                                                    +{job.requiredSkills.length - 4}
                                                 </Badge>
                                             )}
                                         </div>
