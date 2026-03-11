@@ -73,7 +73,25 @@ export default function ResumePage() {
         setIsAnalyzing(true);
         try {
             const response = await client.post("/resume/analyze");
-            setAnalysisResult(response.data);
+
+            // Map the flat backend response to the nested structure Expected by ScoreDisplay
+            const backendData = response.data;
+            const mappedData = {
+                score: backendData.overallScore || 0,
+                sections: {
+                    skills: backendData.skillScore || 0,
+                    experience: backendData.experienceScore || 0,
+                    education: backendData.educationScore || 0,
+                    formatting: backendData.formattingScore || 0,
+                },
+                missingKeywords: backendData.missingKeywords || [],
+                suggestions: backendData.suggestions || [],
+                strengths: backendData.strengths || []
+            };
+
+            setAnalysisResult(mappedData);
+            setIsAnalyzing(false);
+            toast.success("Analysis complete!");
         } catch {
             // Mock ATS Analysis if backend is not available
             setTimeout(() => {
