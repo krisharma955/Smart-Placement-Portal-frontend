@@ -7,9 +7,15 @@ import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { BriefcaseIcon, GraduationCap, ArrowRight, Zap, Target, ShieldCheck, Code, PenTool, BarChart, Database, Star } from "lucide-react";
 import { useAuthStore } from "@/lib/store/auth";
+import { useEffect } from "react";
 
 export default function LandingPage() {
   const { user } = useAuthStore();
+
+  useEffect(() => {
+    console.log("user");
+    console.log(process.env.NEXT_PUBLIC_API_URL);
+  }, []);
 
   const getDashboardLink = () => {
     if (user?.role === "STUDENT") return "/student/dashboard";

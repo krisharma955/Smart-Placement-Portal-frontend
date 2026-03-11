@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { FileUp, FileText, Sparkles, Loader2, Download } from "lucide-react";
+import { FileUp, FileText, Sparkles, Loader2, Download, Trash2 } from "lucide-react";
 
 import { client } from "@/lib/api/client";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,7 @@ export default function ResumePage() {
     const [isUploading, setIsUploading] = useState(false);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [analysisResult, setAnalysisResult] = useState<any>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const { data: resume, refetch } = useQuery({
         queryKey: ["student-resume"],
@@ -102,6 +103,16 @@ export default function ResumePage() {
         }
     };
 
+    const deleteResume = async () => {
+        try {
+            // await client.delete("/resume"); // Wait for real backend integration
+            toast.success("Resume deleted successfully!");
+            refetch(); // For now will just clear local mock state
+        } catch {
+            toast.error("Failed to delete resume");
+        }
+    };
+
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
             <div>
@@ -119,43 +130,51 @@ export default function ResumePage() {
                         <CardDescription className="text-muted-foreground">Upload your latest CV in PDF format</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6 pt-6 relative z-10">
-                        <div className="border border-dashed border-white/20 rounded-2xl p-8 flex flex-col items-center justify-center text-center bg-black/40 hover:bg-white/5 hover:border-primary/50 transition-all duration-300 group/upload relative overflow-hidden">
+                        <div
+                            className="border border-dashed border-white/20 rounded-2xl p-8 flex flex-col items-center justify-center text-center bg-black/40 hover:bg-white/5 hover:border-primary/50 transition-all duration-300 group/upload relative cursor-pointer overflow-hidden"
+                            onClick={() => !isUploading && fileInputRef.current?.click()}
+                        >
                             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.05)_0,transparent_100%)] opacity-0 group-hover/upload:opacity-100 transition-opacity duration-500" />
                             <div className="p-4 rounded-full bg-primary/10 mb-4 group-hover/upload:scale-110 group-hover/upload:shadow-glow-primary transition-all duration-300 relative z-10">
                                 <FileUp className="h-8 w-8 text-primary shadow-sm" />
                             </div>
                             <p className="text-sm font-bold text-foreground/90 mb-1 relative z-10">Click to upload or drag and drop</p>
                             <p className="text-xs text-muted-foreground mb-6 relative z-10">PDF only (max 5MB)</p>
-                            <div className="relative z-10">
-                                <Input
-                                    type="file"
-                                    accept=".pdf"
-                                    onChange={handleFileUpload}
-                                    disabled={isUploading}
-                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed z-20"
-                                />
-                                <Button disabled={isUploading} className="pointer-events-none h-11 px-6 rounded-xl bg-white/5 hover:bg-white/10 text-foreground border border-white/10 transition-all relative z-10 group-hover/upload:bg-primary group-hover/upload:text-primary-foreground group-hover/upload:border-primary">
-                                    {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin text-primary" /> : "Select File"}
-                                </Button>
-                            </div>
+
+                            <Input
+                                type="file"
+                                accept=".pdf"
+                                onChange={handleFileUpload}
+                                disabled={isUploading}
+                                ref={fileInputRef}
+                                className="hidden"
+                            />
+                            <Button type="button" disabled={isUploading} className="pointer-events-none h-11 px-6 rounded-xl bg-white/5 hover:bg-white/10 text-foreground border border-white/10 transition-all z-10 group-hover/upload:bg-primary group-hover/upload:text-primary-foreground group-hover/upload:border-primary">
+                                {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin text-primary" /> : "Select File"}
+                            </Button>
                         </div>
 
-                        {resume || true ? ( // Mocking true to show UI
+                        {resume ? (
                             <div className="p-4 rounded-xl bg-black/40 border border-white/5 flex items-center justify-between group/file hover:border-white/10 transition-colors">
                                 <div className="flex items-center space-x-4 overflow-hidden">
                                     <div className="p-2.5 bg-primary/10 rounded-lg shrink-0 group-hover/file:bg-primary/20 transition-colors">
                                         <FileText className="h-5 w-5 text-primary" />
                                     </div>
                                     <div className="truncate">
-                                        <p className="text-sm font-bold text-foreground/90 truncate">latest_resume_2024.pdf</p>
+                                        <p className="text-sm font-bold text-foreground/90 truncate">{resume?.fileName || "latest_resume.pdf"}</p>
                                         <p className="text-xs text-muted-foreground mt-0.5">
                                             Uploaded {format(new Date(), "MMM d, yyyy")}
                                         </p>
                                     </div>
                                 </div>
-                                <Button variant="ghost" size="icon" className="shrink-0 text-muted-foreground hover:text-white hover:bg-white/5 h-9 w-9 rounded-lg transition-colors">
-                                    <Download className="h-4 w-4" />
-                                </Button>
+                                <div className="flex items-center gap-1 shrink-0">
+                                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-white hover:bg-white/5 h-9 w-9 rounded-lg transition-colors">
+                                        <Download className="h-4 w-4" />
+                                    </Button>
+                                    <Button variant="ghost" onClick={deleteResume} size="icon" className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-9 w-9 rounded-lg transition-colors">
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </div>
                             </div>
                         ) : null}
 
