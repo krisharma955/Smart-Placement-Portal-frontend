@@ -168,8 +168,8 @@ export default function StudentJobsPage() {
                                         </div>
                                     </div>
 
-                                    {job.skills && job.skills.length > 0 && (
-                                        <div className="flex flex-wrap gap-2 pt-2">
+                                    {job?.skills && job.skills.length > 0 && (
+                                        <div className="mt-4 flex flex-wrap gap-2">
                                             {job.skills.slice(0, 3).map((skill: string) => (
                                                 <Badge key={skill} variant="outline" className="bg-black/40 border-white/10 text-muted-foreground">
                                                     {skill}
