@@ -1,11 +1,12 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, Pencil } from "lucide-react";
 
 import { client } from "@/lib/api/client";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,7 @@ type CompanyProfileFormValues = z.infer<typeof companyProfileSchema>;
 
 export default function CompanyProfile() {
     const queryClient = useQueryClient();
+    const [isEditing, setIsEditing] = useState(false);
 
     const { data: profile, isLoading } = useQuery({
         queryKey: ["company-profile"],
@@ -44,6 +46,12 @@ export default function CompanyProfile() {
             }
         },
     });
+
+    useEffect(() => {
+        if (!isLoading && !profile) {
+            setIsEditing(true);
+        }
+    }, [isLoading, profile]);
 
     const {
         register,
@@ -71,6 +79,7 @@ export default function CompanyProfile() {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["company-profile"] });
             toast.success("Company profile saved successfully!");
+            setIsEditing(false);
         },
         onError: (error: any) => {
             toast.error(error.response?.data?.message || "Failed to save profile.");
@@ -89,16 +98,81 @@ export default function CompanyProfile() {
         );
     }
 
+    if (!isEditing && profile) {
+        return (
+            <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h1 className="text-3xl font-bold tracking-tight">Organization Profile</h1>
+                        <p className="text-muted-foreground mt-2">
+                            Your organization details that students will see when applying to your jobs.
+                        </p>
+                    </div>
+                    <Button onClick={() => setIsEditing(true)} variant="outline" className="border-white/10 hover:bg-white/5 transition-colors">
+                        <Pencil className="w-4 h-4 mr-2" />
+                        Edit Profile
+                    </Button>
+                </div>
+
+                <Card className="border-border/50 bg-card/50 backdrop-blur shadow-xl border-white/5">
+                    <CardHeader>
+                        <CardTitle className="text-xl">Organization Details</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        <div className="grid gap-6 md:grid-cols-2">
+                            <div className="space-y-1">
+                                <span className="text-sm text-muted-foreground uppercase tracking-wider font-semibold">Company Name</span>
+                                <p className="font-medium text-lg text-foreground/90">{profile.companyName}</p>
+                            </div>
+                            {profile.website && (
+                                <div className="space-y-1">
+                                    <span className="text-sm text-muted-foreground uppercase tracking-wider font-semibold">Website</span>
+                                    <p className="font-medium text-lg text-foreground/90">
+                                        <a href={profile.website} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                                            {profile.website}
+                                        </a>
+                                    </p>
+                                </div>
+                            )}
+                            <div className="space-y-1">
+                                <span className="text-sm text-muted-foreground uppercase tracking-wider font-semibold">Industry</span>
+                                <p className="font-medium text-lg text-foreground/90">{profile.industry}</p>
+                            </div>
+                            <div className="space-y-1">
+                                <span className="text-sm text-muted-foreground uppercase tracking-wider font-semibold">Headquarters Location</span>
+                                <p className="font-medium text-lg text-foreground/90">{profile.location}</p>
+                            </div>
+                        </div>
+
+                        <div className="space-y-4 pt-6 mt-2 border-t border-border/40">
+                            <div className="space-y-1">
+                                <span className="text-sm text-muted-foreground uppercase tracking-wider font-semibold">About the Company</span>
+                                <p className="text-base text-foreground/80 leading-relaxed whitespace-pre-wrap mt-2">{profile.description}</p>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+        );
+    }
+
     return (
         <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight">Company Profile</h1>
-                <p className="text-muted-foreground mt-2">
-                    Update the profile details that students will see when applying to your jobs.
-                </p>
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight">{profile ? "Edit Company Profile" : "Create Company Profile"}</h1>
+                    <p className="text-muted-foreground mt-2">
+                        Update the profile details that students will see when applying to your jobs.
+                    </p>
+                </div>
+                {profile && (
+                    <Button onClick={() => setIsEditing(false)} variant="ghost" className="text-muted-foreground hover:text-foreground">
+                        Cancel
+                    </Button>
+                )}
             </div>
 
-            <Card className="border-border/50 bg-card/50 backdrop-blur">
+            <Card className="border-border/50 bg-card/50 backdrop-blur shadow-xl border-white/5">
                 <CardHeader>
                     <CardTitle>Organization Details</CardTitle>
                     <CardDescription>
