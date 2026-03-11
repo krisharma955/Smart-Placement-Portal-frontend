@@ -1,20 +1,16 @@
 "use client";
 
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
     Building2,
     MapPin,
     Banknote,
     BriefcaseIcon,
-    Search,
-    Filter,
     Loader2
 } from "lucide-react";
 
 import { client } from "@/lib/api/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
     Card,
@@ -25,38 +21,26 @@ import {
 import { toast } from "sonner";
 
 export default function StudentJobsPage() {
-    const [searchTerm, setSearchTerm] = useState("");
 
     const { data: jobs = [], isLoading } = useQuery({
         queryKey: ["all-jobs"],
         queryFn: async () => {
             try {
                 const response = await client.get("/jobs");
-                return response.data;
+                const data = response.data;
+
+                // Handle paginated Spring Boot responses (e.g. { content: [...] })
+                const jobsList = Array.isArray(data) ? data : (data?.content || []);
+
+                // Normalize backend field names to what the UI expects
+                return jobsList.map((job: any) => ({
+                    ...job,
+                    company: job.company || { name: job.companyName || job.postedBy?.companyName || "Unknown Company" },
+                    skills: job.skills || job.requiredSkills || [],
+                }));
             } catch (error) {
-                // Fallback mock jobs if API is unavailable
-                return [
-                    {
-                        id: "1",
-                        title: "Frontend Engineer",
-                        company: { name: "Vercel" },
-                        location: "Remote",
-                        type: "FULL_TIME",
-                        salaryRange: "$120k - $150k",
-                        skills: ["React", "Next.js", "TypeScript"],
-                        description: "Build the future of the web with us."
-                    },
-                    {
-                        id: "2",
-                        title: "Backend Developer",
-                        company: { name: "Stripe" },
-                        location: "San Francisco, CA",
-                        type: "FULL_TIME",
-                        salaryRange: "$140k - $170k",
-                        skills: ["Node.js", "Go", "PostgreSQL"],
-                        description: "Scale payment infrastructure globally."
-                    },
-                ];
+                console.error("Failed to fetch jobs:", error);
+                return [];
             }
         },
     });
@@ -70,39 +54,13 @@ export default function StudentJobsPage() {
         }
     };
 
-    const filteredJobs = jobs.filter((job: any) =>
-        job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        job.company?.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Job Board</h1>
-                    <p className="text-muted-foreground mt-2">
-                        Discover and apply to open positions from top companies.
-                    </p>
-                </div>
-            </div>
-
-            <div className="flex flex-col md:flex-row gap-4 bg-card/50 p-4 rounded-2xl glass border-white/10 relative overflow-hidden">
-                <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
-                <div className="relative flex-1 group">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
-                    <Input
-                        placeholder="Search by role or company..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-12 h-12 bg-black/40 border-white/10 transition-all rounded-xl text-md focus-visible:ring-primary focus-visible:border-primary w-full"
-                    />
-                </div>
-                <div className="flex gap-3">
-                    <Button variant="outline" className="h-12 px-6 bg-black/40 border-white/10 hover:bg-white/5 hover:text-white rounded-xl transition-all group">
-                        <Filter className="h-4 w-4 mr-2 group-hover:text-primary transition-colors" />
-                        Filters
-                    </Button>
-                </div>
+            <div>
+                <h1 className="text-3xl font-bold tracking-tight">Job Board</h1>
+                <p className="text-muted-foreground mt-2">
+                    Discover and apply to open positions from top companies.
+                </p>
             </div>
 
             {isLoading ? (
@@ -111,12 +69,12 @@ export default function StudentJobsPage() {
                 </div>
             ) : (
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    {filteredJobs.length === 0 ? (
+                    {jobs.length === 0 ? (
                         <div className="col-span-full py-12 text-center text-muted-foreground">
-                            No jobs found matching your criteria.
+                            No job postings available right now.
                         </div>
                     ) : (
-                        filteredJobs.map((job: any) => (
+                        jobs.map((job: any) => (
                             <Card key={job.id} className="flex flex-col glass border-white/5 relative overflow-hidden transition-all duration-500 hover:-translate-y-2 hover:shadow-glow-primary group">
                                 <div className="absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity duration-500 bg-primary/20 pointer-events-none" />
                                 <CardHeader className="p-5 pb-4 relative z-10 border-b border-white/5">
